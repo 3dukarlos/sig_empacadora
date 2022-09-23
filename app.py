@@ -25,7 +25,7 @@ cmap.set_under("white")
 # )
 
 st.set_page_config(
-    page_title="(SIG) Huamani",
+    page_title="(sig) Agro",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -35,8 +35,8 @@ image = Image.open('huamani.png')
 colimg1.image(image, width=327)
 
 #st.set_page_config(page_title='Survey Results', layout='wide')
-colimg2.header('**(SIG) Sistema Integrado de Gestión**')
-colimg2.subheader('Control de Gestión')
+colimg2.header('**(sig) Sistema Integrado de Gestión**')
+colimg2.subheader('KPI Agro')
 colimg2.markdown("""
 *v. 1.0*
 """)
