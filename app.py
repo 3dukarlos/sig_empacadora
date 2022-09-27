@@ -177,6 +177,7 @@ with col1.expander("Tipo de Gasto"):
 df_acumulado = df.groupby(['UNIDAD NEGOCIO', 'VARIEDAD', 'CONSUMIDOR', 'TIPO GASTO'])['IMPORTE'].sum().reset_index()
 df_semanal = df.groupby(['UNIDAD NEGOCIO', 'VARIEDAD', 'CONSUMIDOR', 'TIPO GASTO', 'AÑO', 'SEMANA'])['IMPORTE'].sum().reset_index()
 df_actilabor = df.groupby(['UNIDAD NEGOCIO', 'VARIEDAD', 'CONSUMIDOR', 'TIPO GASTO', 'AÑO', 'SEMANA', 'ACTIVIDAD / LABOR'])['IMPORTE'].sum().reset_index()
+df_aqfermat = df.groupby(['UNIDAD NEGOCIO', 'VARIEDAD', 'CONSUMIDOR', 'TIPO GASTO', 'SUBTIPO1', 'SUBTIPO2', 'AÑO', 'SEMANA', 'ACTIVIDAD / LABOR'])['IMPORTE'].sum().reset_index()
 
 #---------------------------------#
 # Dataframe filtrado
@@ -189,16 +190,22 @@ df_PLOT2 = df_HEADER.groupby(['VARIEDAD', 'TIPO GASTO'])['IMPORTE'].sum().reset_
 df_FOOTER = df_semanal[ (df_semanal['UNIDAD NEGOCIO'].isin(fundo1)) & (df_semanal['VARIEDAD'].isin(VARIEDAD2)) 
  & (df_semanal['CONSUMIDOR'].isin(lote)) & (df_semanal['TIPO GASTO'].isin(actividades1)) ]
 
-df_MANODEOBRA = df_actilabor[ (df_actilabor['UNIDAD NEGOCIO'].isin(fundo1)) & (df_actilabor['VARIEDAD'].isin(VARIEDAD2)) 
+df_TIPOGASTO = df_actilabor[ (df_actilabor['UNIDAD NEGOCIO'].isin(fundo1)) & (df_actilabor['VARIEDAD'].isin(VARIEDAD2)) 
  & (df_actilabor['CONSUMIDOR'].isin(lote)) & (df_actilabor['TIPO GASTO'].isin(actividades1)) ]
+
+df_TIPOGASTO_OTROS = df_aqfermat[ (df_aqfermat['UNIDAD NEGOCIO'].isin(fundo1)) & (df_aqfermat['VARIEDAD'].isin(VARIEDAD2)) 
+ & (df_aqfermat['CONSUMIDOR'].isin(lote)) & (df_aqfermat['TIPO GASTO'].isin(actividades1)) ]
 
 
 #---------------------------------#
 # MANO DE OBRA / pivot - filter
 
-df_MO = df_MANODEOBRA[(df_MANODEOBRA['TIPO GASTO']=='(A) MANO DE OBRA')]
+df_MO = df_TIPOGASTO[(df_TIPOGASTO['TIPO GASTO']=='(A) MANO DE OBRA')]
+df_AQ = df_TIPOGASTO_OTROS[(df_TIPOGASTO_OTROS['TIPO GASTO']=='(D) AGROQUIMICOS')]
+df_FE = df_TIPOGASTO_OTROS[(df_TIPOGASTO_OTROS['TIPO GASTO']=='(C) FERTILIZANTES')]
 tipogasto = df_MO['TIPO GASTO'].unique().tolist()
 act_labor = df_MO['ACTIVIDAD / LABOR'].unique().tolist()
+act_subtipo1 = df_TIPOGASTO_OTROS['SUBTIPO1'].unique().tolist()
 
 
 
@@ -265,14 +272,15 @@ if selected == "Summary":
 elif selected == "Details":
 
     #tabs
-    tab1, tab2 = st.tabs(["DETALLE GENERAL POR TIPO DE GASTO (semanal)", "(A) MANO DE OBRA"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["DETALLE GENERAL POR TIPO DE GASTO (semanal)", "(A) MANO DE OBRA",\
+        "(D) AGROQUIMICOS","(C) FERTILIZANTES", "(F) ENVASES Y EMBAJALES"])
 
 
     #pivot general de Tipos de Gasto
     tab1.caption('Pivot General de Tipos de Gasto - **Semana de miércoles a martes (según planilla)**')
 
-    #tab1
     if df_FOOTER.shape[0]:
+        #tab1
         pivot_WEEK = pd.pivot_table(df_FOOTER, index=['CONSUMIDOR', 'TIPO GASTO'], columns='SEMANA', values='IMPORTE', fill_value=np.nan, margins=True, aggfunc=sum, margins_name='Total')
 
         tab1.dataframe(pivot_WEEK.style\
@@ -280,14 +288,16 @@ elif selected == "Details":
             .applymap(lambda x: color_nan_white(x))\
             .applymap(lambda x: color_nan_white_background(x))
         )
+        
+    #tab2
+        act_laborCOMBO = tab2.multiselect('Actividad Labor:', act_labor, act_labor)
 
-        act_laborCOMBO = tab2.multiselect('Actividad Labor:', act_labor, default=act_labor)
+        # act_laborCOMBO = tab2.selectbox('Actividad Labor:', act_labor)
         # fx filtrado dt LABORES DE MANO DE OBRA
         dff2_ = df2_filtered(df_MO, f_tipogasto=tipogasto, f_actilabor=act_labor)
 
         #df filtered
         df_LABORES = df_MO[ (df_MO['ACTIVIDAD / LABOR'].isin(act_laborCOMBO)) ]
-
 
         #grafico de barras verticales por labores de MANO DE OBRA
         tab2.write("**Actividad / Labor por CONSUMIDOR**")
@@ -320,14 +330,48 @@ elif selected == "Details":
         tab2.caption('Pivot de labores de MANO DE OBRA por semana')
 
         if df_LABORES.shape[0]:
-            pivot_TIPOGASTO = pd.pivot_table(df_LABORES, index=['VARIEDAD', 'CONSUMIDOR', 'ACTIVIDAD / LABOR'], columns='SEMANA', values='IMPORTE', fill_value=np.nan, margins=True, aggfunc=sum, margins_name='Total')
-            tab2.dataframe(pivot_TIPOGASTO.style\
-                .background_gradient(axis='index')\
+            pivot_TIPOGASTOMO = pd.pivot_table(df_LABORES, index=['VARIEDAD', 'CONSUMIDOR', 'ACTIVIDAD / LABOR'], columns='SEMANA', values='IMPORTE', fill_value=np.nan, margins=True, aggfunc=sum, margins_name='Total')
+            tab2.dataframe(pivot_TIPOGASTOMO.style\
+                .background_gradient(axis='index', low=0, high=1.0)\
+                .applymap(highlight_max).format('{:,.2f}')\
+                .applymap(lambda x: color_nan_white(x))\
+                .applymap(lambda x: color_nan_white_background(x))
+                )
+        
+    #tab3
+        tab3.caption('Pivot de Tipo de AGROQUIMICOS por semana')
+        if df_AQ.shape[0]:
+            pivot_TIPOGASTOAQ = pd.pivot_table(df_AQ, index=['VARIEDAD', 'CONSUMIDOR', 'SUBTIPO1'], columns='SEMANA', values='IMPORTE', fill_value=np.nan, margins=True, aggfunc=sum, margins_name='Total')
+            tab3.dataframe(pivot_TIPOGASTOAQ.style\
+                .background_gradient(axis='index', low=0, high=1.0)\
+                .applymap(highlight_max).format('{:,.2f}')\
+                .applymap(lambda x: color_nan_white(x))\
+                .applymap(lambda x: color_nan_white_background(x))
+                )
+        tab3.markdown('---')
+        act_aqfermat = tab3.multiselect('Tipo de Agroquimico:', act_subtipo1, act_subtipo1)
+        df_AQdetails = df_AQ[ (df_AQ['SUBTIPO1'].isin(act_aqfermat)) ]
+
+        tab3.caption('Pivot de Productos por tipo de AGROQUIMICOS por semana')
+        if df_AQdetails.shape[0]:
+            pivot_TIPOGASTOAQdetails = pd.pivot_table(df_AQdetails, index=['VARIEDAD', 'CONSUMIDOR', 'SUBTIPO2'], columns='SEMANA', values='IMPORTE', fill_value=np.nan, margins=True, aggfunc=sum, margins_name='Total')
+            tab3.dataframe(pivot_TIPOGASTOAQdetails.style\
+                .background_gradient(axis='index', low=0, high=1.0)\
                 .applymap(highlight_max).format('{:,.2f}')\
                 .applymap(lambda x: color_nan_white(x))\
                 .applymap(lambda x: color_nan_white_background(x))
                 )
 
+        tab3.markdown('---')
+        expander_AQ = st.expander("Costos Agroquimicos - por Producto (acumulado)")
+        if df_AQdetails.shape[0]:
+            pivot_TIPOGASTOAQdetails = pd.pivot_table(df_AQdetails, index=['VARIEDAD', 'SUBTIPO2'], columns='CONSUMIDOR', values='IMPORTE', fill_value=np.nan, margins=True, aggfunc=sum, margins_name='Total')
+            tab3.dataframe(pivot_TIPOGASTOAQdetails.style\
+                .background_gradient(axis='index', low=0, high=1.0)\
+                .applymap(highlight_max).format('{:,.2f}')\
+                .applymap(lambda x: color_nan_white(x))\
+                .applymap(lambda x: color_nan_white_background(x))
+                )
 
 elif selected == "Plots":
 
